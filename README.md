@@ -15,8 +15,11 @@ Dataset Description: The dataset has about 4000 records of 15 different paramete
 
 ├── README.md         
 ├── Coronary_HeartDiseasePrediction_files  #Contains all the plots required for rendering in md file
+
 ├── Coronary_HeartDiseasePrediction.Rmd    # It is the rmd file with all the code
+
 ├── framingham.csv # It is the dataset used for the project  
+
 └── Coronary_HeartDiseasePrediction.md # The output file with all the code ans outputs
 
 # Conclusion
