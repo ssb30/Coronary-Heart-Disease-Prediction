@@ -22,12 +22,13 @@ So, this is an imbalanced data. Negative records represented by 0’s and positi
 
 # Repository overview
 
+```tree
 ├── README.md         
 ├── Coronary_HeartDiseasePrediction_files  #Contains all the plots required for rendering in md file.                                                       
 ├── Coronary_HeartDiseasePrediction.Rmd    # It is the rmd file with all the code
 ├── framingham.csv # It is the dataset used for the project  
 └── Coronary_HeartDiseasePrediction.md # The output file with all the code ans outputs
-
+```
 # Conclusion
 
 This project attempted to produce few insights on the top five important reasons for the cause of Coronary Heart Disease. It determines that Random 
