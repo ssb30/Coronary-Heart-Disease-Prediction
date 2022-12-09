@@ -11,3 +11,15 @@ This study focuses on to the predicting the 10-year risk of developing future co
 
 Dataset Description: The dataset has about 4000 records of 15 different parameters and contains patient information. The 15 attributes present in the dataset are divided into categorical and continuous variables. Class label - TenYearCHD has 3,593 negative records and 643 positive records. So, this is an imbalanced data. Negative records represented by 0’s and positive records represented by 1’s
 
+# Repository overview
+
+├── README.md         
+├── Coronary_HeartDiseasePrediction_files  #Contains all the plots required for rendering in md file
+├── Coronary_HeartDiseasePrediction.Rmd    # It is the rmd file with all the code
+├── framingham.csv # It is the dataset used for the project  
+└── Coronary_HeartDiseasePrediction.md # The output file with all the code ans outputs
+
+# Conclusion
+
+This project attempted to produce few insights on the top five important reasons for the cause of Coronary Heart Disease. It determines that Random forest with SMOTE is the best model to derive the important features with the best accuracy among all. Based on the findings, precautions might be taken against those who are anticipated to have a high risk of developing coronary heart disease.
+
