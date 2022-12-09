@@ -1,0 +1,560 @@
+---
+title: "Coronary Heart Disease Prediction"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr) 
+library(Amelia)
+library(corrplot)
+library(psych)
+library(caret)
+library(cvms)
+library(ROSE)
+library(smotefamily)
+library(class)
+library(randomForest)
+library(gridExtra)
+```
+
+```{r}
+heart_data <- read.csv("/Users/saisharanburugu/Desktop/STAT 515/Final Project/framingham.csv")
+```
+
+```{r}
+missmap(heart_data)
+```
+
+Check Null Values in the dataset and impute
+```{r}
+sum(is.na(heart_data))
+```
+
+Checking for null values in Age Columns
+```{r}
+sum(which(is.na(heart_data$age)))
+```
+
+Finding null values in Education Column and replacing the null values with the median of it.
+```{r}
+length(which(is.na(heart_data$education)))
+
+heart_data$education[is.na(heart_data$education)] <- median(heart_data$education, na.rm = T)
+
+```
+
+Finding null values in Current Smoker
+```{r}
+length(which(is.na(heart_data$currentSmoker)))
+```
+
+Finding null values in Cigarettes Column and replacing the null values with the median of it.
+```{r}
+length(which(is.na(heart_data$cigsPerDay)))
+heart_data$cigsPerDay[is.na(heart_data$cigsPerDay)] <- median(heart_data$cigsPerDay, na.rm = T)
+```
+
+Finding null values in BPMeds Column and replacing the null values with the median of it.
+```{r}
+length(which(is.na(heart_data$BPMeds)))
+heart_data$BPMeds[is.na(heart_data$BPMeds)] <- median(heart_data$BPMeds, na.rm = T)
+```
+
+Finding null values in prevalentStroke Column
+```{r}
+length(which(is.na(heart_data$prevalentStroke)))
+```
+
+Finding null values in prevalentHyp Column
+```{r}
+length(which(is.na(heart_data$prevalentHyp)))
+```
+
+Finding null values in totChol Column and replacing the null values with the median of it
+```{r}
+length(which(is.na(heart_data$totChol)))
+heart_data$totChol[is.na(heart_data$totChol)] <- median(heart_data$totChol, na.rm = T)
+```
+
+Finding null values in BMI Column and replacing the null values with the median of it
+```{r}
+length(which(is.na(heart_data$BMI)))
+heart_data$BMI[is.na(heart_data$BMI)] <- median(heart_data$BMI, na.rm = T)
+```
+
+Finding null values in heartRate Column and replacing the null values with the median of it
+```{r}
+length(which(is.na(heart_data$heartRate)))
+heart_data$heartRate[is.na(heart_data$heartRate)] <- median(heart_data$heartRate, na.rm = T)
+```
+
+Finding null values in glucose Column and replacing the null values with the median of it
+```{r}
+length(which(is.na(heart_data$glucose)))
+heart_data$glucose[is.na(heart_data$glucose)] <- median(heart_data$glucose, na.rm = T)
+```
+
+Subset of Continuous Variables to find the correlation between the variables
+```{r}
+cont_df = subset(heart_data, select=c("age", "cigsPerDay", 'totChol', 'sysBP',
+                               'diaBP', 'BMI', 'heartRate', 'glucose'))
+```
+
+Removing the outliers in totChol column as they make no sense one cannot have cholestrol more than 590
+```{r}
+heart_data <- subset(heart_data, heart_data$totChol < 590)
+```
+
+Finding the Relationship between continuous variables
+```{r}
+pairs.panels(cont_df, smooth = TRUE,
+            cex.cor = 1, pch = 20, hist.col = 5,
+            scale = FALSE, density = TRUE, ellipses = TRUE,
+            method = 'pearson', ci=TRUE, stars=TRUE, lm=FALSE, cor = TRUE)
+```
+
+# Exploratory Data Analysis 
+```{r}
+ggplot(data = heart_data, mapping = aes(x = as.factor(TenYearCHD), y = age, fill = as.factor(TenYearCHD))) +
+  geom_boxplot() +
+  labs(x="10 Year Risk", y="Age", title="Distribution of Age with respect to 10 year Risk")+
+  theme(plot.title = element_text(hjust = 0.5,size = 25,face="bold"),axis.title = element_text(,size = 20),
+        axis.text =element_text(size=13) ) +
+  scale_x_discrete(labels=c("0" = "No", "1" = "Yes")) +
+  scale_fill_manual(values = c("green","red"))
+```
+                    This box plot represents the relation between Age and 10-Year risk. 
+                    Here the Red box is for “Yes” and the green box is for 
+                    “No”. The line in the middle of box represents the median value. We can see that the median of the ‘Yes’                          values is higher than ‘No’ values. It represents that as the age increases there is a higher risk of having                      CHD in coming 10 years.
+
+
+```{r}
+ggplot(heart_data, aes(x=age)) +
+  geom_histogram(bins = 30)
+```
+
+```{r}
+ggplot(data = heart_data, mapping = aes(x = as.factor(TenYearCHD), y = totChol, fill = as.factor(TenYearCHD))) +
+  geom_boxplot() +
+  labs(x="10 Year Risk", y='Total Cholesterol', title="Distribution of Total Cholesterol with respect to 10 year Risk")+
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "none") +
+  scale_x_discrete(labels=c("0" = "No", "1" = "Yes")) +
+  scale_fill_manual(values = c("green","red"))
+```
+              The following box plot represents the relationship between total cholesterol and 10-year risk. 
+              From the box plot we can determine that the median for the positive class is slightly higher 
+              than the negative class. This represents that increase in total cholesterol will increase the 
+              risk of Coronary Heart Disease over the next 10 years.
+
+```{r}
+a = ggplot(data = heart_data, mapping = aes(x = as.factor(TenYearCHD), y = sysBP, fill = as.factor(TenYearCHD))) +
+  geom_boxplot() +
+  labs(x="10 Year Risk", y='Systolic Blood Pressure', title="Distribution of Systolic BP with respect to 10 year Risk")+
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "none") +
+  scale_x_discrete(labels=c("0" = "No", "1" = "Yes"))+
+  scale_fill_manual(values = c("green","red"))
+
+b = ggplot(data = heart_data, mapping = aes(x = as.factor(TenYearCHD), y = diaBP, fill = as.factor(TenYearCHD))) +
+  geom_boxplot() +
+  labs(x="10 Year Risk", y='Diastolic Blood Pressure', title="Distribution of Diastolic BP with respect to 10 year Risk")+
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "none") +
+  scale_x_discrete(labels=c("0" = "No", "1" = "Yes")) +
+  scale_fill_manual(values = c("green","red"))
+
+grid.arrange(a, b, ncol=2)
+```
+       Blood pressure is measured using two features, the first one is systolic blood pressure
+       which measures the pressure when the heart beats and the second one which is diastolic
+       blood pressure measures the pressure when heart rests between beats from the below box plots.
+       Both Systolic BP and Diastolic BP is higher for the positive class. We can determine that if the Systolic BP 
+       and Diastolic BP increases the risk of CHD over the next 10 years also increases.
+
+```{r}
+ggplot(heart_data, aes(x=BMI,  fill=as.factor(TenYearCHD))) +
+  geom_histogram(bins = 30)+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x='BMI', y='Frequency', title='Distribution of BMI')+
+  theme(text = element_text(size = 16))+
+   scale_fill_manual(values = c("green","red"))
+
+ggplot(data = heart_data, mapping = aes(x = as.factor(TenYearCHD), y = BMI, fill = as.factor(TenYearCHD))) +
+  geom_boxplot() +
+  labs(x="10 Year Risk", y='BMI', title="Distribution of BMI with respect to 10 year Risk")+
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "none") +
+  scale_x_discrete(labels=c("0" = "No", "1" = "Yes")) +
+    scale_fill_manual(values = c("green","red"))
+````
+```{r}
+
+cigs_df <- heart_data %>% filter(TenYearCHD %in% c('0', '1')) %>% mutate(TenYearCHD=as.factor(TenYearCHD)) %>%
+  group_by(cigsPerDay, TenYearCHD) %>% summarize(total=n())
+
+ggplot(cigs_df, aes(x=cigsPerDay,y=total, fill=TenYearCHD),total)+
+  geom_col(position="dodge")+
+  labs(title="Ciga", x="Cigarettes per Day", y= "Total Count of People")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(aes(label = total), 
+            position = position_dodge(0.9),
+            color="black",vjust = -0.5, size = 4) +
+  theme(text = element_text(size = 16))
+
+sum = aggregate(heart_data$cigsPerDay, list(heart_data$age), FUN=sum) 
+ggplot(sum, aes(x=Group.1,y=x))+
+  geom_col(position="dodge", fill='darkorchid1') +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title="Cigarettes consumptions by Age", x="Age", y= "Frequency")
+
+```
+
+Removing Education Column because it is not relavant to the Analysis
+```{r}
+heart_data = subset(heart_data, select = -c(education))
+```
+
+# Modeling
+
+The problem we are trying to solve is – predicting whether a person is at a risk of getting a heart disease in the next 10-year span. The modeling algorithms we used are Logistic Regression, K- Nearest Neighbors, Random Forest. For all the models, we used various metrics to calculate the test results. Accuracy is the primary metric. However, relying only on accuracy to validate the model is not ideal. So, we considered Confusion Matrix to derive Precision, Recall and F1 – Score. This is because we tried to reduce Type 1 (False Positives) and Type 2 errors (False Negatives)
+
+Subsetting the dataset into two dataframe with train data of 80% and test data of 20% and setting a seed of 100.
+```{r}
+set.seed(100)
+train.index <- createDataPartition(heart_data$TenYearCHD, p = .8, list = FALSE)
+train_data <- heart_data[ train.index,]
+test_data  <- heart_data[-train.index,]
+```
+
+# Logistic Regression
+
+Logistic Regression is used when the class variable is binary, such classification is called binary classification. Further, it can also be used for Multi-Class Classification. It is used to explain the relation between one dependent variable(Y) with one or more independent variables (X).
+
+
+Fitting the Logistic Regression Model on the training dataset
+```{r}
+glm.fit <- glm(TenYearCHD~., 
+               data=train_data,
+               family=binomial)
+summary(glm.fit)
+```
+
+Predicting the model values using the Logistic Regression Model and converting the output to factor variable to plot the Confusion Matrix
+```{r}
+test.predicted.model <- predict(glm.fit, test_data, type = "response")
+glm.pred=rep(0,nrow(test_data))
+glm.pred[test.predicted.model>.5]=1
+glm.pred<- as.factor(glm.pred)
+```
+
+Constructing the Confusion Matrix from caret package
+```{r}
+confusion_LR <-confusionMatrix(as.factor(test_data$TenYearCHD), glm.pred,positive="1")
+confusion_LR
+```
+
+Fetching All the metrics of Logistic Regression model
+```{r}
+confusion_LR$byClass
+```
+
+Plotting the Confusion Matrix using cvms library
+```{r}
+conf_mat_lr <- confusion_matrix(targets = as.factor(test_data$TenYearCHD),
+                                predictions = as.factor(glm.pred)) 
+
+plot_confusion_matrix(conf_mat_lr$`Confusion Matrix`[[1]],
+                      font_counts = font(
+                        size = 7,
+                        color = "black"
+                      ),palette = "Greens")
+```
+Due to class imbalance, False Negatives are higher which is a Type 2 error. It wrongly classifies a person with a risk of getting a heart disease into NOT getting a heart disease. Such errors cost the people lives. So, in the medical field, it is very important to reduce the False Negatives.
+
+# K- Nearest Neighbors
+
+KNN is a lazy learning algorithm. First, data (of n features) is projected into a n-dimensional space, for a test data point Xq it calculates the distance from this point to all the data points in the training dataset. Based on the value of the K, it gets class label of the top K nearest data points and calculates the maximum votes among all the nearest neighbors and assigns to the test point Xq.
+
+
+
+Converting the dataframe into matrix by eliminating the output variable to run KNN Algorithm
+```{r}
+trainx <- as.matrix(train_data[,-15])
+valx <- as.matrix(test_data[,-15])
+```
+
+Finding the best K-Value for KNN so that we can plot the confusion matrix using that K- Value
+```{r}
+set.seed(100)
+error<-rep(NA,200)
+for(i in 1:200)
+{
+  knn.pred=knn(trainx,valx,train_data$TenYearCHD,k=i)
+  error[i]=mean(knn.pred!=test_data$TenYearCHD)
+}
+plot(error,type="l",xlab="K",ylab="Test Error",main = "K Value vs Test Error for KNN")
+loc=which.min(error)
+loc
+```
+As we get the best k value as 14 we fit the model using k=14 and plot the confusion matrix
+```{r}
+knn.pred <- knn(trainx, valx, train_data$TenYearCHD, k=14, prob=TRUE)
+cf_mat_knn <- confusionMatrix(data =  as.factor(knn.pred), reference = as.factor(test_data$TenYearCHD), positive="1")
+cf_mat_knn
+```
+
+Fetching All the metrics of K-Nearest Neighbors model
+```{r}
+cf_mat_knn$byClass
+```
+
+Plotting the Confusion Matrix using cvms library
+```{r}
+conf_mat_knn <- confusion_matrix(targets = test_data$TenYearCHD,
+                                 predictions = as.factor(knn.pred)) 
+
+
+plot_confusion_matrix(conf_mat_knn$`Confusion Matrix`[[1]],
+                      font_counts = font(
+                        size = 7,
+                        color = "black"
+                      ),palette = "Greens")
+```
+# Random Forest
+
+Random Forest uses bagging technique that gives higher accuracy compared to other models and its interpretability is also good. It avoids the problem of overfitting and reduces the variance.
+
+
+Fitting the Random Forest Model on the training dataset
+```{r}
+train_data$TenYearCHD<- as.factor(train_data$TenYearCHD)
+test_data$TenYearCHD<- as.factor(test_data$TenYearCHD)
+
+rf=randomForest(TenYearCHD~.,data =train_data ,mtry=6,importance=TRUE)
+rf
+```
+
+Plotting the confusion matrix
+```{r}
+yhat = predict(rf,newdata=test_data)
+cf_mat_rf=confusionMatrix(yhat,test_data$TenYearCHD)
+cf_mat_rf
+```
+
+Fetching All the metrics of Random Forest model
+```{r}
+cf_mat_rf$byClass
+```
+
+Plotting the Confusion Matrix using cvms library
+```{r}
+conf_mat_rf <- confusion_matrix(targets = test_data$TenYearCHD,
+                                predictions = yhat) 
+
+
+plot_confusion_matrix(conf_mat_rf$`Confusion Matrix`[[1]],
+                      font_counts = font(
+                        size = 7,
+                        color = "black"
+                      ),palette = "Greens")
+```
+
+
+Even though the accuracy of all these models is considerably good, Confusion matrix, Precision, recall values state that the models are generalizing the positive class to negative class. This is because the class labels are imbalanced. To overcome this problem, we need to perform oversampling. Here, we are using Synthetic Minority Oversampling Technique (SMOTE). Initially the data has 3,593 negative records and 643 positive records. After using SMOTE the data is balanced to 3,593 negative records and 3581 positive records.
+
+
+# MODELING – AFTER SMOTE
+
+Oversampling the data using SMOTE and balancing the output variable 
+```{r}
+smote= ovun.sample(TenYearCHD~.,data=heart_data,method="over")$data
+table(heart_data$TenYearCHD)
+table(smote$TenYearCHD)
+```
+
+
+Subsetting the SMOTE dataset into two dataframe with train data of 80% and test data of 20% and setting a seed of 100.
+```{r}
+set.seed(100)
+train.index_smote <- createDataPartition(smote$TenYearCHD, p = .8, list = FALSE)
+train_data_smote <- smote[ train.index_smote,]
+test_data_smote  <- smote[-train.index_smote,]
+```
+
+# Logistic Regression after re-sampling
+
+Fitting Logistic Regression Model after Re-sampling the dataset.
+```{r}
+glm.fit.smote <- glm(TenYearCHD~., 
+                     data=train_data_smote,
+                     family=binomial)
+summary(glm.fit.smote)
+
+```
+
+
+Predicting Logistic Regression Model after re-sampling the data.
+```{r}
+test.predicted.model.smote <- predict(glm.fit.smote, test_data_smote, type = "response")
+glm.pred.smote=rep(0,nrow(test_data_smote))
+glm.pred.smote[test.predicted.model.smote>.5]=1
+glm.pred.smote<- as.factor(glm.pred.smote)
+```
+
+
+Plotting the confusion matrix
+```{r}
+cf_LR_Smote<-confusionMatrix(as.factor(test_data_smote$TenYearCHD), glm.pred.smote,positive="1")
+cf_LR_Smote
+```
+
+Fetching all the metrics of Logistic Regression Model after resampling
+```{r}
+cf_LR_Smote$byClass
+```
+
+Plotting the confusion matrix using cvms library
+```{r}
+conf_mat_lr_smote <- confusion_matrix(targets =as.factor(test_data_smote$TenYearCHD),
+                                      predictions = as.factor(glm.pred.smote) )
+
+plot_confusion_matrix(conf_mat_lr_smote$`Confusion Matrix`[[1]],
+                      font_counts = font(
+                        size = 7,
+                        color = "black"
+                      ),palette = "Greens")
+```
+
+# K-Nearest Neighbors after Re-sampling
+Converting the dataframe into matrix by eliminating the output variable to run KNN Algorithm
+```{r}
+trainx_smote <- as.matrix(train_data_smote[,-15])
+valx_smote <- as.matrix(test_data_smote[,-15])
+```
+
+Finding the best K-Value to fit the model using that k-value
+```{r}
+error_smote<-rep(NA,200)
+for(i in 1:200)
+{
+  knn.pred=knn(trainx_smote,valx_smote,train_data_smote$TenYearCHD,k=i)
+  error_smote[i]=mean(knn.pred!=test_data_smote$TenYearCHD)
+}
+
+plot(error_smote,type="l",xlab="K",ylab="Test Error",main = "K Value vs Test Error for KNN (Smote)")
+loc=which.min(error_smote)
+loc
+```
+As we got the best K-value of 1 we will be fitting the model based on it using a seed of 100
+```{r}
+set.seed(100)
+knn.pred_smote <- knn(trainx_smote, valx_smote, train_data_smote$TenYearCHD, k=1, prob=TRUE)
+summary(knn.pred_smote)
+```
+
+Plotting the confusion matrix of KNN Model after re-sampling
+```{r}
+cf_knn_smote <- confusionMatrix(data =  as.factor(knn.pred_smote), reference = as.factor(test_data_smote$TenYearCHD), positive="1")
+cf_knn_smote
+```
+
+Fetching all the metrics of the model
+```{r}
+cf_knn_smote$byClass
+```
+
+Plotting the confusion matrix using cvms library
+```{r}
+conf_mat_knn_smote <- confusion_matrix(targets = test_data_smote$TenYearCHD,
+                                       predictions = as.factor(knn.pred_smote)) 
+
+
+plot_confusion_matrix(conf_mat_knn_smote$`Confusion Matrix`[[1]],
+                      font_counts = font(
+                        size = 7,
+                        color = "black"
+                      ),palette = "Greens")
+```
+
+# Random Forest after resampling
+
+Fitting Random Forest model
+```{r}
+train_data_smote$TenYearCHD<- as.factor(train_data_smote$TenYearCHD)
+test_data_smote$TenYearCHD<- as.factor(test_data_smote$TenYearCHD)
+rf_smote=randomForest(TenYearCHD~.,data =train_data_smote ,mtry=6,importance=TRUE)
+rf_smote
+```
+
+Plotting the confusion matrix of Random Forest Model
+```{r}
+yhatsmote = predict(rf_smote,newdata=test_data_smote)
+rf_conf_smote=confusionMatrix(yhatsmote,test_data_smote$TenYearCHD)
+rf_conf_smote
+```
+
+Fetching the metrics of the model
+```{r}
+rf_conf_smote$byClass
+```
+
+Plotting the confusion matrix using cvms
+```{r}
+conf_mat_rf_smote <- confusion_matrix(targets = test_data_smote$TenYearCHD,
+                                      predictions = yhatsmote) 
+
+plot_confusion_matrix(conf_mat_rf_smote$`Confusion Matrix`[[1]],
+                      font_counts = font(
+                        size = 7,
+                        color = "black"
+                      ),palette = "Greens")
+```
+Fetching the importantance of each feature of random forest 
+```{r}
+importance(rf_smote)
+```
+
+Plotting the top 5 important features of the model
+```{r}
+varImpPlot(rf_smote,main = "Top 5 Important Features derived from Random Forest (Smote)",frame.plot = TRUE,
+           lcolor="Red",bg = "black",n.var =5)
+```
+
+Plotting the Accuracy of all the models
+```{r}
+Accuracy <- c(confusion_LR$overall['Accuracy'], cf_LR_Smote$overall['Accuracy'], 
+              cf_mat_knn$overall['Accuracy'], cf_knn_smote$overall['Accuracy'],
+              cf_mat_rf$overall['Accuracy'],rf_conf_smote$overall['Accuracy']
+)
+li<-list(Accuracy)
+Model <- c("Logistic Regression","Logistic Regression (Smote)","KNN","KNN (Smote)","Random Forest","Random Forest (Smote)")
+df <- data.frame(li,Model)
+names(df)[1]<-"Accuracy"
+
+ggplot(df,aes(x=Model,y=Accuracy,group=1))+
+  geom_line()+
+  geom_point(colour = "red", size = 3)+
+  ggtitle("Accuracy Comparison of all Models")+
+  theme(plot.title = element_text(hjust = 0.5,size = 25,face="bold"),axis.title = element_text(,size = 20),
+        axis.text =element_text(size=13) )
+```
+
+# Comparing and contrasting above results:
+
+For Logistic Regression, when compared to the previous model and the current model using SMOTE. Although the accuracy is low, Precision, Recall values are considerably higher which indicates that interpretability of the model is increased. Since, our aim is to reduce the Type 1 (False Positives) and Type 2 errors (False Negatives), we are exploring other models to check their performance.
+
+KNN produced very good results by reducing False Negatives to a greater extent and also reducing the False Positives. On the other hand, Random forest further reduced the False Negatives by keeping the False Positives at a lower rate.
+
+Finally, it can be observed that Random Forest performed very well and it is the best model. Below is the accuracy comparison of all the models.
+
+# Limitations and Future Analysis Needed
+
+The dataset available is an imbalanced data so there was an issue of introducing bias to the training model. Therefore, the testing data is more generalized towards the higher-class label. If the data is balanced then we could have more information about the people of positive class. The amount of data is not large enough and it would have been more beneficial if wide range of data would be available.
+
+Future Research would be including the data for other regions as well. It will be beneficial to know the trends and patterns of the Heart Disease in various regions. Food Habits and workout pattern also play a crucial role in predicting the Coronary Heart Disease (CHD), introducing these variables would give more information on understanding the external factors influencing the heart disease.
+
+# Conclusion
+
+In conclusion, this research attempted to produce few insights on the top five important reasons for the cause of Coronary Heart Disease. It determines that Random forest with SMOTE is the best model to derive the important features with the best accuracy among all. Based on the findings, precautions might be taken against those who are anticipated to have a high risk of developing coronary heart disease.
